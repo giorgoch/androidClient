@@ -7,8 +7,17 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.web.client.RestTemplate;
+import java.io.IOException;
+import java.io.InputStream;
+
+import cz.msebera.android.httpclient.HttpEntity;
+import cz.msebera.android.httpclient.HttpResponse;
+import cz.msebera.android.httpclient.client.HttpClient;
+import cz.msebera.android.httpclient.client.methods.HttpGet;
+import cz.msebera.android.httpclient.impl.client.DefaultHttpClient;
+import cz.msebera.android.httpclient.protocol.BasicHttpContext;
+import cz.msebera.android.httpclient.protocol.HttpContext;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -29,18 +38,26 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private class HttpReqTask extends AsyncTask<Void, Void, Draw[]> {
+    private class HttpReqTask extends AsyncTask<Void, Void, String> {
 
         @Override
-        protected Draw[] doInBackground(Void... voids) {
-
+        protected String doInBackground(Void... voids) {
+            String apiUrl = "http://applications.opap.gr/DrawsRestServices/lotto/last.json";
             try {
-                String apiUrl = "http://applications.opap.gr/DrawsRestServices/lotto/last.json";
+                String text = null;
+                HttpClient httpClient = new DefaultHttpClient();
+                HttpContext localContext = new BasicHttpContext();
+                HttpGet httpGet = new HttpGet(apiUrl);
+                HttpResponse response = httpClient.execute(httpGet, localContext);
+                HttpEntity entity = response.getEntity();
+                text = getASCIIContentFromEntity(entity);
+                /*
                 RestTemplate restTemplate = new RestTemplate();
                 restTemplate.getMessageConverters().add(new MappingJackson2HttpMessageConverter());
-                Draw[] draws = restTemplate.getForObject(apiUrl, Draw[].class);
+                MyPojo[] pojos = restTemplate.getForObject(apiUrl, MyPojo[].class);
 
-                return draws;
+                return pojos;*/
+                return text;
             } catch (Exception e) {
                 e.getMessage();
 
@@ -48,12 +65,23 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
 
-        @Override
-        protected void onPostExecute(Draw[] draws) {
-            super.onPostExecute(draws);
-
-            EditText et = (EditText) findViewById(R.id.my_edit);
-            et.setText(draws.toString());
+        protected void onPostExecute(String results) {
+            if (results != null) {
+                EditText et = (EditText) findViewById(R.id.my_edit);
+                et.setText(results);
+            }
         }
+    }
+
+    protected String getASCIIContentFromEntity(HttpEntity entity) throws IllegalStateException, IOException {
+        InputStream in = entity.getContent();
+        StringBuffer out = new StringBuffer();
+        int n = 1;
+        while (n > 0) {
+            byte[] b = new byte[4096];
+            n = in.read(b);
+            if (n > 0) out.append(new String(b, 0, n));
+        }
+        return out.toString();
     }
 }
